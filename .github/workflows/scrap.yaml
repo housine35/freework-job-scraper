@@ -1,0 +1,21 @@
+version: '1.0'
+
+jobs:
+  - job: scrape_data
+    docker:
+      - image: python:3.9
+        environment:
+          MONGO_USER: "${MONGO_USER}"
+          MONGO_PASSWORD: "${MONGO_PASSWORD}"
+          MONGO_HOST: "${MONGO_HOST}"
+          MONGO_DB: "${MONGO_DB}"
+          MONGO_COLLECTION: "${MONGO_COLLECTION}"
+    steps:
+      - run:
+          name: Install dependencies
+          command: |
+            pip install -r requirements.txt
+      - run:
+          name: Run scraper script
+          command: |
+            python main.py
