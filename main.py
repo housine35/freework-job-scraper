@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 import argparse
+import sys
 from scraper import fetch_jobs
 from parser import parse_job_postings
 from db import init_db, insert_job
@@ -25,14 +26,12 @@ async def main(all_pages=False):
     }
     payload = {}
 
-    mongo_client, collection = init_db()
     try:
-        mongo_client.admin.command('ping')
+        mongo_client, collection = init_db()
         print("MongoDB connection successful.")
     except Exception as e:
         print(f"MongoDB connection failed: {e}")
-        mongo_client.close()
-        return []
+        sys.exit(1)
 
     rnet_client = Client(impersonate=Impersonate.Firefox136)
     all_jobs = []
@@ -48,14 +47,22 @@ async def main(all_pages=False):
                 print(f"Fetching page {current_page}...")
                 json_data = await fetch_jobs(rnet_client, current_url, headers, payload)
                 if not json_data:
-                    print("Stopping due to error.")
+                    print("Stopping due to error in fetch_jobs.")
                     break
 
-                job_listings, next_page = parse_job_postings(json_data, current_date)
-                all_jobs.extend(job_listings)
+                try:
+                    job_listings, next_page = parse_job_postings(json_data, current_date)
+                except Exception as e:
+                    print(f"Error parsing job postings: {e}")
+                    break
 
+                all_jobs.extend(job_listings)
                 for job in job_listings:
-                    insert_job(collection, job)
+                    try:
+                        insert_job(collection, job)
+                    except Exception as e:
+                        print(f"Error inserting job: {e}")
+                        continue
 
                 print(f"Inserted {len(job_listings)} jobs from page {current_page}.")
 
@@ -70,13 +77,20 @@ async def main(all_pages=False):
             current_url = f"{base_url}?page=1&itemsPerPage=100"
             json_data = await fetch_jobs(rnet_client, current_url, headers, payload)
             if json_data:
-                job_listings, _ = parse_job_postings(json_data, current_date)
-                all_jobs.extend(job_listings)
-                for job in job_listings:
-                    insert_job(collection, job)
+                try:
+                    job_listings, _ = parse_job_postings(json_data, current_date)
+                    all_jobs.extend(job_listings)
+                    for job in job_listings:
+                        insert_job(collection, job)
+                except Exception as e:
+                    print(f"Error processing single page: {e}")
+                    sys.exit(1)
 
         print(f"Total jobs inserted: {len(all_jobs)}")
         return all_jobs
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        sys.exit(1)
     finally:
         mongo_client.close()
 
@@ -85,4 +99,8 @@ if __name__ == "__main__":
     parser.add_argument('--all', type=lambda s: s.lower() == 'true', default=False,
                         help="Set to 'true' to scrape 10 pages, or 'false' for one page.")
     args = parser.parse_args()
-    asyncio.run(main(all_pages=args.all))
+    try:
+        asyncio.run(main(all_pages=args.all))
+    except Exception as e:
+        print(f"Main execution failed: {e}")
+        sys.exit(1)
