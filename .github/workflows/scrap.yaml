@@ -1,6 +1,9 @@
+name: Scrape freework Jobs
+
+
 on:
   schedule:
-    - cron: "0,30 * * * *"  # Toutes les heures à H:30 UTC
+    - cron: "1 * * * *"  # Toutes les heures à H:30 UTC
   workflow_dispatch:      # Permet aussi de le lancer manuellement
 
 jobs:
