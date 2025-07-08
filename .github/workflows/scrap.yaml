@@ -20,7 +20,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.8.18' # Specify exact version for consistency
+          python-version: '3.8.18'
 
       - name: Install dependencies
         run: |
@@ -43,4 +43,4 @@ jobs:
             echo "Error: One or more environment variables are unset"
             exit 1
           fi
-          python main.py || { echo "Script failed with exit code $?"; exit 1; }
+          python main.py || { echo "main.py failed with exit code $?"; exit 1; }
