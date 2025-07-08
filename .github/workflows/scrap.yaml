@@ -7,8 +7,8 @@ on:
   pull_request:
     branches:
       - main
-  schedule:
-    - cron: '0 * * * *'
+  # schedule:
+  #   - cron: '0 * * * *'
 
 jobs:
   run-scraper:
@@ -24,8 +24,18 @@ jobs:
 
       - name: Install dependencies
         run: |
+          echo "Listing files in repository"
+          ls -la
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; else echo "requirements.txt not found"; exit 1; fi
+          if [ -f requirements.txt ]; then
+            echo "Installing requirements.txt"
+            pip install -r requirements.txt
+          else
+            echo "requirements.txt not found"
+            exit 1
+          fi
+          pip list  # Show installed packages
+        shell: bash
 
       - name: Set environment variables
         env:
@@ -39,8 +49,11 @@ jobs:
           echo "MONGO_DB: $MONGO_DB"
           echo "MONGO_HOST: $MONGO_HOST"
           echo "MONGO_USER: $MONGO_USER"
+          echo "MONGO_PASSWORD_SET: ${MONGO_PASSWORD:+set}"  # Avoid printing password
           if [ -z "$MONGO_COLLECTION" ] || [ -z "$MONGO_DB" ] || [ -z "$MONGO_HOST" ] || [ -z "$MONGO_USER" ] || [ -z "$MONGO_PASSWORD" ]; then
             echo "Error: One or more environment variables are unset"
             exit 1
           fi
-          python main.py || { echo "main.py failed with exit code $?"; exit 1; }
+          echo "Running main.py"
+          python -u main.py || { echo "main.py failed with exit code $?"; exit 1; }
+        shell: bash
