@@ -5,7 +5,8 @@ import sys
 from scraper import fetch_jobs
 from parser import parse_job_postings
 from db import init_db, insert_job
-from rnet import Client, Impersonate
+from rnet import Emulation, Client
+
 
 async def main(all_pages=False):
     base_url = "https://www.free-work.com/api/job_postings"
@@ -24,7 +25,6 @@ async def main(all_pages=False):
         'Sec-Fetch-Site': 'same-origin',
         'Connection': 'keep-alive',
     }
-    payload = {}
 
     try:
         mongo_client, collection = init_db()
@@ -33,7 +33,10 @@ async def main(all_pages=False):
         print(f"MongoDB connection failed: {e}")
         sys.exit(1)
 
-    rnet_client = Client(impersonate=Impersonate.Firefox136)
+    # You can still create an Rnet Client if you want,
+    # but it's not required for fetch_jobs() anymore.
+    rnet_client = Client(emulation=Emulation.Firefox143)
+
     all_jobs = []
     current_date = datetime.now().strftime('%Y-%m-%d')
 
@@ -45,7 +48,7 @@ async def main(all_pages=False):
 
             while current_page <= max_pages:
                 print(f"Fetching page {current_page}...")
-                json_data = await fetch_jobs(rnet_client, current_url, headers, payload)
+                json_data = await fetch_jobs(current_url, headers)
                 if not json_data:
                     print("Stopping due to error in fetch_jobs.")
                     break
@@ -75,7 +78,7 @@ async def main(all_pages=False):
 
         else:
             current_url = f"{base_url}?page=1&itemsPerPage=100"
-            json_data = await fetch_jobs(rnet_client, current_url, headers, payload)
+            json_data = await fetch_jobs(current_url, headers)
             if json_data:
                 try:
                     job_listings, _ = parse_job_postings(json_data, current_date)
@@ -88,17 +91,20 @@ async def main(all_pages=False):
 
         print(f"Total jobs inserted: {len(all_jobs)}")
         return all_jobs
+
     except Exception as e:
         print(f"Unexpected error: {e}")
         sys.exit(1)
     finally:
         mongo_client.close()
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Free-Work Job Scraper")
     parser.add_argument('--all', type=lambda s: s.lower() == 'true', default=False,
                         help="Set to 'true' to scrape 10 pages, or 'false' for one page.")
     args = parser.parse_args()
+
     try:
         asyncio.run(main(all_pages=args.all))
     except Exception as e:
