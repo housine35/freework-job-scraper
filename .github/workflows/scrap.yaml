@@ -42,4 +42,4 @@ jobs:
         run: |
           echo "Running scraper script"
           python main.py
-          python update.py
+          python update.py --apply
